@@ -95,7 +95,7 @@ async function handleStats(res) {
     res.end(JSON.stringify(data));
   } catch (e) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: e.message }));
+    res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 }
 
@@ -104,7 +104,7 @@ function serveStatic(req, res) {
   const filePath = path.join(PUBLIC_DIR, urlPath);
   const ext = path.extname(filePath);
 
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
     res.writeHead(403);
     return res.end();
   }
