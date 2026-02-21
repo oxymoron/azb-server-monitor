@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --yellow:    #d29922;
+      --red:       #f85149;
+      --blue:      #58a6ff;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    header {
+      max-width: 960px;
+      margin: 0 auto 28px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    header h1 span {
+      color: var(--blue);
+    }
+
+    #refresh-info {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ---- CPU ---- */
+    .cpu-value {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .cpu-value span {
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .cpu-bar-wrap {
+      margin-top: 14px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .cpu-bar {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.6s ease, background 0.4s;
+    }
+
+    /* ---- RAM ---- */
+    .ram-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .ram-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ---- Pools ---- */
+    .pool-item + .pool-item {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .pool-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .pool-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-green  { background: rgba(63,185,80,.15);  color: var(--green); }
+    .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); }
+    .badge-red    { background: rgba(248,81,73,.15);  color: var(--red); }
+
+    .pool-bar-wrap {
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .pool-bar {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.6s ease, background 0.4s;
+    }
+
+    .pool-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ---- Updates ---- */
+    .updates-count {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .updates-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .pkg-list {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pkg {
+      font-size: 0.72rem;
+      background: rgba(248,81,73,.1);
+      color: var(--red);
+      border: 1px solid rgba(248,81,73,.25);
+      border-radius: 6px;
+      padding: 2px 8px;
+    }
+
+    /* ---- System ---- */
+    .sys-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sys-row:last-child { border-bottom: none; }
+    .sys-label { color: var(--muted); }
+
+    /* ---- Loading / error ---- */
+    .skeleton {
+      background: linear-gradient(90deg, var(--border) 25%, #21262d 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+      height: 1.2em;
+      width: 60%;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Server Monitor &mdash; <span id="hostname">…</span></h1>
+  <div id="refresh-info">Refreshing in <strong id="countdown">30</strong>s</div>
+</header>
+
+<div class="grid">
+
+  <!-- CPU -->
+  <div class="card" id="card-cpu">
+    <div class="card-title">CPU Usage</div>
+    <div class="skeleton"></div>
+  </div>
+
+  <!-- RAM -->
+  <div class="card" id="card-ram">
+    <div class="card-title">Memory</div>
+    <div class="skeleton"></div>
+  </div>
+
+  <!-- ZFS Pools -->
+  <div class="card" id="card-pools" style="grid-column: 1 / -1">
+    <div class="card-title">ZFS Pools</div>
+    <div class="skeleton"></div>
+  </div>
+
+  <!-- Updates -->
+  <div class="card" id="card-updates">
+    <div class="card-title">Pending Updates</div>
+    <div class="skeleton"></div>
+  </div>
+
+  <!-- System -->
+  <div class="card" id="card-system">
+    <div class="card-title">System</div>
+    <div class="skeleton"></div>
+  </div>
+
+</div>
+
+<script>
+  const REFRESH_INTERVAL = 5;
+
+  function fmtBytes(bytes) {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+    return `${bytes.toFixed(1)} ${units[i]}`;
+  }
+
+  function fmtUptime(seconds) {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${d}d ${h}h ${m}m`;
+  }
+
+  function barColor(pct) {
+    if (pct >= 90) return 'var(--red)';
+    if (pct >= 75) return 'var(--yellow)';
+    return 'var(--blue)';
+  }
+
+  function healthBadge(health) {
+    if (health === 'ONLINE') return `<span class="badge badge-green">${health}</span>`;
+    if (health === 'DEGRADED') return `<span class="badge badge-yellow">${health}</span>`;
+    return `<span class="badge badge-red">${health}</span>`;
+  }
+
+  function renderCpu(cpu) {
+    const color = barColor(cpu);
+    document.getElementById('card-cpu').innerHTML = `
+      <div class="card-title">CPU Usage</div>
+      <div class="cpu-value">${cpu}<span>%</span></div>
+      <div class="cpu-bar-wrap">
+        <div class="cpu-bar" style="width:${cpu}%; background:${color}"></div>
+      </div>`;
+  }
+
+  function renderRam(ram) {
+    const used = ram.total - ram.free;
+    const pct = Math.round((used / ram.total) * 100);
+    const color = barColor(pct);
+    document.getElementById('card-ram').innerHTML = `
+      <div class="card-title">Memory</div>
+      <div class="ram-value">${pct}%</div>
+      <div class="ram-sub">${fmtBytes(used)} used of ${fmtBytes(ram.total)}</div>
+      <div class="cpu-bar-wrap" style="margin-top:14px">
+        <div class="cpu-bar" style="width:${pct}%; background:${color}"></div>
+      </div>`;
+  }
+
+  function renderPools(pools) {
+    if (!pools.length) {
+      document.getElementById('card-pools').innerHTML = `
+        <div class="card-title">ZFS Pools</div>
+        <span style="color:var(--muted);font-size:.88rem">No ZFS pools found.</span>`;
+      return;
+    }
+    const items = pools.map(p => `
+      <div class="pool-item">
+        <div class="pool-header">
+          <span class="pool-name">${p.name}</span>
+          ${healthBadge(p.health)}
+        </div>
+        <div class="pool-bar-wrap">
+          <div class="pool-bar" style="width:${p.cap}%; background:${barColor(p.cap)}"></div>
+        </div>
+        <div class="pool-stats">
+          <span>${fmtBytes(p.alloc)} used</span>
+          <span>${p.cap}%</span>
+          <span>${fmtBytes(p.free)} free of ${fmtBytes(p.size)}</span>
+        </div>
+      </div>`).join('');
+    document.getElementById('card-pools').innerHTML = `
+      <div class="card-title">ZFS Pools</div>${items}`;
+  }
+
+  function renderUpdates(updates) {
+    const secColor = updates.security > 0 ? 'var(--red)' : 'var(--green)';
+    const pkgs = updates.securityPackages.length
+      ? `<div class="pkg-list">${updates.securityPackages.map(p => `<span class="pkg">${p}</span>`).join('')}</div>`
+      : '';
+    document.getElementById('card-updates').innerHTML = `
+      <div class="card-title">Pending Updates</div>
+      <div class="updates-count" style="color:${secColor}">${updates.security}</div>
+      <div class="updates-sub">security update${updates.security !== 1 ? 's' : ''} &nbsp;·&nbsp; ${updates.total} total</div>
+      ${pkgs}`;
+  }
+
+  function renderSystem(system) {
+    document.getElementById('hostname').textContent = system.hostname;
+    document.getElementById('card-system').innerHTML = `
+      <div class="card-title">System</div>
+      <div class="sys-row"><span class="sys-label">Hostname</span><span>${system.hostname}</span></div>
+      <div class="sys-row"><span class="sys-label">Uptime</span><span>${fmtUptime(system.uptime)}</span></div>
+      <div class="sys-row"><span class="sys-label">Load avg</span><span>${system.loadavg.join(' · ')}</span></div>`;
+  }
+
+  async function fetchAndRender() {
+    try {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      renderCpu(data.cpu);
+      renderRam(data.system.ram);
+      renderPools(data.pools);
+      renderUpdates(data.updates);
+      renderSystem(data.system);
+    } catch (e) {
+      console.error('Failed to fetch stats', e);
+    }
+  }
+
+  // Countdown timer
+  let secondsLeft = 0;
+  function tick() {
+    if (secondsLeft <= 0) {
+      secondsLeft = REFRESH_INTERVAL;
+      fetchAndRender();
+    }
+    document.getElementById('countdown').textContent = secondsLeft;
+    secondsLeft--;
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>

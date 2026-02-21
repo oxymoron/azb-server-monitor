@@ -1,0 +1,11 @@
+{
+  "name": "azb-server-monitor",
+  "version": "1.0.0",
+  "description": "Lightweight server health dashboard — ZFS, CPU, and update status",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "license": "MIT"
+}

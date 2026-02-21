@@ -1,0 +1,14 @@
+[Unit]
+Description=AZB Server Monitor Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=oxymoron
+WorkingDirectory=/home/oxymoron/projects/azb-server-monitor
+ExecStart=/home/oxymoron/.local/share/mise/installs/node/24.13.1/bin/node server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
